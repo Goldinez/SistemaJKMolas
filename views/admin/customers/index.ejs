@@ -1,0 +1,49 @@
+<%- include("../../partials/header.ejs") %>
+<%- include("../../partials/navbar.ejs") %>
+
+<div class="container">
+    <hr>
+    <h2>Clientes cadastrados</h2>
+    <a class="btn btn-success" href="/customers/cadastrar">Cadastrar novo cliente</a>
+    <hr>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nome</th>
+                <th>CPF/CNPJ</th>
+                <th>Telefone</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            <% customers.forEach(Customer => { %>
+                <tr>
+                    <th><%= Customer.id %></th>
+                    <th><%= Customer.name%></th>
+                    <th><%= Customer.cpf_cnpj%></th>
+                    <td><%= Customer.phone %></td>
+                    <th>
+                        <a href="/customers/editar/<%= Customer.id %>" class="btn btn-warning">Editar</a>
+                        <form method="POST" action="/customers/deletar" style="display:inline" onsubmit="fnConfirmDelete(event, this)">
+                            <input type="hidden" name="id" value="<%= Customer.id %>">
+                            <button class="btn btn-danger">Deletar</button>
+                        </form>
+                    </th>
+                </tr>
+            <% }) %> 
+        </tbody>
+    </table>
+</div>
+
+
+<%- include("../../partials/footer.ejs") %>
+<script>
+    function fnConfirmDelete(event, form){
+        event.preventDefault();
+        var decision = confirm("Você quer deletar esse cliente? Isso irá excluir todos pedidos vinculados a ele!");
+        if(decision){
+            form.submit();
+        }        
+    }
+</script>

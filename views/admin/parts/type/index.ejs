@@ -1,0 +1,45 @@
+<%- include("../../../partials/header.ejs") %>
+<%- include("../../../partials/navbar.ejs") %>
+
+<div class="container">
+    <hr>
+    <h2>Tipos de peças</h2>
+    <a class="btn btn-success" href="/parts/tipo/cadastrar">Cadastrar novo tipo de peça</a>
+    <hr>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Título</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            <% typeParts.forEach(typePart => { %>
+                <tr>
+                    <th><%= typePart.id %></th>
+                    <th><%= typePart.name%></th>
+                    <th>
+                        <a href="/parts/tipo/editar/<%= typePart.id %>" class="btn btn-warning">Editar</a>
+                        <form method="POST" action="/parts/tipo/deletar" style="display:inline" onsubmit="fnConfirmDelete(event, this)">
+                            <input type="hidden" name="id" value="<%= typePart.id %>">
+                            <button class="btn btn-danger">Deletar</button>
+                        </form>
+                    </th>
+                </tr>
+            <% }) %> 
+        </tbody>
+    </table>
+</div>
+
+
+<%- include("../../../partials/footer.ejs") %>
+<script>
+    function fnConfirmDelete(event, form){
+        event.preventDefault();
+        var decision = confirm("Você quer deletar esse cadastro? Isso irá apagar todas peças vinculadas a ela");
+        if(decision){
+            form.submit();
+        }        
+    }
+</script>

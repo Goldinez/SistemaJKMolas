@@ -1,0 +1,150 @@
+<%- include("../../partials/header.ejs") %>
+<%- include("../../partials/navbar.ejs") %>
+
+<div class="container mt-4">
+    <h1 class="mb-4">Pedidos</h1>
+
+    <form method="GET" action="/orders" class="row g-3 mb-4 align-items-end">
+
+      <!-- Status Pagamento -->
+      <div class="col-md-2">
+        <label for="status_pagamento" class="form-label">Status Pagamento</label>
+        <select id="status_pagamento" name="status_pagamento" class="form-select">
+          <option value="">Todos</option>
+          <option value="pendente" <%= filtros.status_pagamento === 'pendente' ? 'selected' : '' %>>Pendente</option>
+          <option value="parcial" <%= filtros.status_pagamento === 'parcial' ? 'selected' : '' %>>Parcial</option>
+          <option value="pago" <%= filtros.status_pagamento === 'pago' ? 'selected' : '' %>>Pago</option>
+        </select>
+      </div>
+
+      <!-- Status Pedido -->
+      <div class="col-md-2">
+        <label for="status_pedido" class="form-label">Status Pedido</label>
+        <select id="status_pedido" name="status_pedido" class="form-select">
+          <option value="">Todos</option>
+          <option value="em andamento" <%= filtros.status_pedido === 'em andamento' ? 'selected' : '' %>>Em andamento</option>
+          <option value="concluido" <%= filtros.status_pedido === 'concluido' ? 'selected' : '' %>>Concluído</option>
+        </select>
+      </div>
+
+      <!-- Método Pagamento -->
+      <div class="col-md-2">
+        <label for="metodo_pagamento" class="form-label">Método Pagamento</label>
+        <select id="metodo_pagamento" name="metodo_pagamento" class="form-select">
+          <option value="">Todos</option>
+          <option value="dinheiro" <%= filtros.metodo_pagamento === 'dinheiro' ? 'selected' : '' %>>Dinheiro</option>
+          <option value="cartao" <%= filtros.metodo_pagamento === 'cartao' ? 'selected' : '' %>>Cartão</option>
+          <option value="boleto" <%= filtros.metodo_pagamento === 'boleto' ? 'selected' : '' %>>Boleto</option>
+          <option value="pix" <%= filtros.metodo_pagamento === 'pix' ? 'selected' : '' %>>Pix</option>
+        </select>
+      </div>
+
+      <!-- Data início -->
+      <br><div class="col-md-2">
+        <label for="data_inicio" class="form-label">Data Início</label>
+        <input
+          type="date"
+          id="data_inicio"
+          name="data_inicio"
+          class="form-control"
+          value="<%= filtros.data_inicio || '' %>"
+        />
+      </div>
+
+      <!-- Data fim -->
+      <div class="col-md-2">
+        <label for="data_fim" class="form-label">Data Fim</label>
+        <input
+          type="date"
+          id="data_fim"
+          name="data_fim"
+          class="form-control"
+          value="<%= filtros.data_fim || '' %>"
+        />
+      </div>
+
+      <!-- Botão -->
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-primary w-100">Filtrar</button>
+      </div>
+
+    </form>
+
+    <table class="table table-bordered table-hover align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>ID</th>
+          <th>Cliente</th>
+          <th>CPF/CNPJ</th>
+          <th>Placa</th>
+          <th>Valor Total</th>
+          <th>Parcelas</th>
+          <th>Status Pagamento</th>
+          <th>Status Pedido</th>
+          <th>Método Pagamento</th>
+          <th>Data Pedido</th>
+          <th>Observações</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (pedidos.length === 0) { %>
+          <tr>
+            <td colspan="11" class="text-center">Nenhum pedido encontrado.</td>
+          </tr>
+        <% } else { %>
+          <% pedidos.forEach(p => { %>
+            <tr>
+              <td><%= p.id %></td>
+              <td><%= p.customer ? p.customer.name : "Cliente não encontrado" %></td>
+              <td><%= p.customer ? p.customer.cpf_cnpj : "" %></td>
+              <td><%= p.placa_veiculo %></td>
+              <td>R$ <%= Number(p.valor_total).toFixed(2) %></td>
+              <td><%= p.parcelas_pagas %> / <%= p.parcelas_total %></td>
+              <td><%= p.status_pagamento %></td>
+              <td><%= p.status_pedido %></td>
+              <td><%= p.metodo_pagamento %></td>
+              <td><%= new Date(p.data_pedido).toLocaleDateString("pt-BR") %></td>
+              <td><%= p.observacoes || "" %></td>
+            </tr>
+          <% }) %>
+        <% } %>
+      </tbody>
+    </table>
+
+    <!-- Paginação -->
+    <nav aria-label="Paginação">
+      <ul class="pagination justify-content-center">
+        <% 
+          const queryWithoutPage = Object.entries(filtros)
+            .filter(([key]) => key !== 'page')
+            .map(([key, val]) => `${key}=${encodeURIComponent(val)}`)
+            .join('&');
+        %>
+
+        <li class="page-item <%= page <= 1 ? 'disabled' : '' %>">
+          <a class="page-link" href="/orders?<%= queryWithoutPage %>&page=<%= page - 1 %>">Anterior</a>
+        </li>
+
+        <% for(let p = 1; p <= totalPages; p++) { %>
+          <li class="page-item <%= p === page ? 'active' : '' %>">
+            <a class="page-link" href="/orders?<%= queryWithoutPage %>&page=<%= p %>"><%= p %></a>
+          </li>
+        <% } %>
+
+        <li class="page-item <%= page >= totalPages ? 'disabled' : '' %>">
+          <a class="page-link" href="/orders?<%= queryWithoutPage %>&page=<%= page + 1 %>">Próximo</a>
+        </li>
+      </ul>
+    </nav>
+  </div>
+
+<%- include("../../partials/footer.ejs") %>
+<script>
+    function fnConfirmDelete(event, form){
+        event.preventDefault();
+        var decision = confirm("Você quer deletar esse pedido?");
+        if(decision){
+            form.submit();
+        }        
+    }
+</script>

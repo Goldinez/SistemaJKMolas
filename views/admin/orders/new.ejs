@@ -1,0 +1,224 @@
+<%- include("../../partials/header.ejs") %>
+<%- include("../../partials/navbar.ejs") %>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
+<div class="container">
+    <hr>
+    <div class="card">
+        <div class="card-header">
+            <h2>Criar novo pedido</h2>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="/orders/save">
+                <label for="clienteSelect">Cliente:</label>
+                <select class="form-control" name="clienteId" id="clienteSelect" style="width: 100%;">
+                    <option value="novo">Escolha a opção novo cliente ou pesquise um cliente cadastrado</option>
+                </select><br><br>
+                <div class="card-body" id="novoCliente" style="display: none">
+                        <label>Nome:</label>
+                        <input type="text" class="form-control" name="clienteName">
+                        
+                        <label>CPF:</label>
+                        <input type="number" class="form-control" name="clienteCpfCnpj" ><br>
+                        
+                        <label>Contato:</label>
+                        <input type="number" class="form-control" name="clienteContato]"><br>
+        
+                        <button id="removerCliente" type="button">Remover</button><br>
+                </div>
+                <button id="botaoCliente" type="button" class="btn btn-primary">Novo cliente</button><br><br>
+
+                <label>Placa do Veículo:</label><input class="form-control w-30" type="text" name="placa_veiculo"><br>
+                <div class="card-body">
+                    <h3 class="card-header">Itens do Pedido</h3><br>
+                    <div id="itensPedido"></div>
+                    <button type="button" class="btn btn-primary"onclick="adicionarItem()">Adicionar Item</button><br>
+                </div>
+                <label>Parcelas:</label><input class="form-control" type="text" name="parcela" placeholder="Quantidade de parcelas"><br>
+                <label>Método de Pagamento:</label>
+                <select name="metodo_pagamento" class="form-control-sm">
+                    <option value="dinheiro">Dinheiro</option>
+                    <option value="cartao">Cartão</option>
+                    <option value="boleto">Boleto</option>
+                    <option value="pix">PIX</option>
+                </select><br>
+                <div id="totalPedido" class="text-right font-weight-bold p-3" style="font-size: 1.2rem;"></div>
+                <label>Observações:</label><textarea name="observacoes" class="form-control"></textarea><br>
+                <button class="btn btn-success">Cadastrar Pedido</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<%- include("../../partials/footer.ejs") %>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
+<script>
+    function adicionarItem() {
+        const container = document.getElementById("itensPedido");
+        const index = container.children.length;
+
+        const html = `
+            <div class="item-container" data-index="${index}">
+                <div class="form-group">
+                    <label>Tipo:</label>
+                    <select name="itens[${index}][tipo]" class="form-control tipoItem" data-index="${index}">
+                        <option value="peca">Peça</option>
+                        <option value="mao_de_obra">Mão de Obra</option>
+                    </select>
+                </div>
+
+                <div class="form-group item-peca">
+                    <label>Peça:</label>
+                    <select name="itens[${index}][part_id]" class="form-control selectPart" data-index="${index}"></select>
+                    <input type="hidden" name="itens[${index}][descricao_hidden]" class="descricaoItem" >
+                </div>
+
+                <div class="form-group item-mao-obra" style="display: none;">
+                    <label>Descrição:</label>
+                    <input type="text" name="itens[${index}][descricao]" class="form-control" placeholder="Descreva o serviço" >
+                </div>
+
+                <div class="form-group">
+                    <label>Quantidade:</label>
+                    <input type="number" class="form-control quantidadeItem" name="itens[${index}][quantidade]" value="1" min="1" >
+                </div>
+
+                <div class="form-group">
+                    <label>Valor:</label>
+                    <input type="number" class="form-control valorItem" name="itens[${index}][valor]" step="0.01" >
+                </div>
+
+                <button type="button" onclick="removerItem(this)" class="btn btn-danger">Remover</button>
+                <hr>
+            </div>
+        `;
+
+        container.insertAdjacentHTML("beforeend", html);
+        aplicarSelect2(index);
+        atualizarEventosQuantidade();
+    }
+
+    function aplicarSelect2(index) {
+        const selector = $(`select[name="itens[${index}][part_id]"]`);
+
+        selector.select2({
+            ajax: {
+                url: '/parts/buscar',
+                dataType: 'json',
+                delay: 250,
+                data: params => ({ termo: params.term }),
+                processResults: data => ({
+                    results: data.map(part => ({
+                        id: part.id,
+                        text: part.text,
+                        valor: part.valor
+                    }))
+                })
+            },
+            placeholder: 'Digite o nome da peça',
+            minimumInputLength: 2,
+            width: '100%'
+        }).on('select2:select', function(e) {
+            const valor = parseFloat(e.params.data.valor || 0);
+            const final = (valor * 1.5).toFixed(2);
+
+            $(`input[name="itens[${index}][valor]"]`).val(final);
+            $(`input[name="itens[${index}][descricao_hidden]"]`).val(e.params.data.text);
+
+            atualizarTotalPedido();
+        });
+    }
+
+    function atualizarEventosQuantidade() {
+        $('input[name^="itens"][name$="[quantidade]"]').off('input').on('input', function () {
+            const inputQuantidade = $(this);
+            const index = inputQuantidade.closest('.item-container').data('index');
+            const quantidade = parseFloat(inputQuantidade.val()) || 1;
+
+            const partSelect = $(`select[name="itens[${index}][part_id]"]`);
+            const selectedData = partSelect.select2('data')[0];
+
+            if (selectedData && selectedData.valor) {
+                const valorUnitario = parseFloat(selectedData.valor);
+                const valorFinal = (valorUnitario * 1.5 * quantidade).toFixed(2);
+                $(`input[name="itens[${index}][valor]"]`).val(valorFinal);
+            }
+
+            atualizarTotalPedido();
+        });
+    }
+
+    function atualizarTotalPedido() {
+        let total = 0;
+        $('.valorItem').each(function () {
+            const val = parseFloat($(this).val());
+            if (!isNaN(val)) total += val;
+        });
+
+        $('#totalPedido').text(`Total do Pedido: R$ ${total.toFixed(2)}`);
+    }
+
+    $(document).on('change', '.tipoItem', function () {
+        const index = $(this).data('index');
+        const container = $(`.item-container[data-index="${index}"]`);
+        const tipo = $(this).val();
+
+        if (tipo === 'peca') {
+            container.find('.item-peca').show();
+            container.find('.item-mao-obra').hide();
+        } else {
+            container.find('.item-peca').hide();
+            container.find('.item-mao-obra').show();
+        }
+
+        atualizarTotalPedido();
+    });
+
+    function removerItem(botao) {
+        $(botao).closest('.item-container').remove();
+        atualizarTotalPedido();
+    }
+
+    $(document).ready(function() {
+        $('#clienteSelect').select2({
+            ajax: {
+                url: '/customers/buscar',
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return {
+                        nome: params.term
+                    };
+                },
+                processResults: function (data) {
+                    return {
+                        results: data.map(cliente => ({
+                            id: cliente.id,
+                            text: cliente.name
+                        }))
+                    };
+                },
+                cache: true
+            },
+            minimumInputLength: 3,
+            placeholder: 'Selecione um cliente'
+        });
+
+        document.getElementById('botaoCliente').addEventListener("click", function() {
+            document.getElementById('novoCliente').style.display = 'block';
+            document.getElementById('botaoCliente').style.display = 'none';
+            $('#clienteSelect').val('novo').trigger('change');
+        });
+
+        document.getElementById('removerCliente').addEventListener("click", function() {
+            document.getElementById('novoCliente').style.display = 'none';
+            document.getElementById('botaoCliente').style.display = 'block';
+        });
+
+        atualizarEventosQuantidade();
+        $(document).on('input', '.valorItem', function () {
+            atualizarTotalPedido();
+        });
+
+    });
+</script>

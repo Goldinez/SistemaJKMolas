@@ -1,0 +1,21 @@
+<%- include("../../../partials/header.ejs") %>
+<%- include("../../../partials/navbar.ejs") %>
+
+<div class="container">
+    <hr>
+    <div class="card">
+        <div class="card-header">
+            <h2>Edição de Marca Compatível</h2>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="/parts/compativel/update">
+                <input class="form-control" type="text" name="name" placeholder="Defina o nome para a marca compativel" value="<%= compatibilityPart.title %>"><br>
+                <input type="hidden" name="id" value="<%= compatibilityPart.id %>">
+                <button class="btn btn-success">Atualizar</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+<%- include("../../../partials/footer.ejs") %>

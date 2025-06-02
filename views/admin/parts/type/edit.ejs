@@ -1,0 +1,21 @@
+<%- include("../../../partials/header.ejs") %>
+<%- include("../../../partials/navbar.ejs") %>
+
+<div class="container">
+    <hr>
+    <div class="card">
+        <div class="card-header">
+            <h2>Edição de Tipo de Peça</h2>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="/parts/tipo/update">
+                <input class="form-control" type="text" name="name" placeholder="Defina o nome para o tipo de peça" value="<%= typePart.title %>"><br>
+                <input type="hidden" name="id" value="<%= typePart.id %>">
+                <button class="btn btn-success">Atualizar</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+<%- include("../../../partials/footer.ejs") %>

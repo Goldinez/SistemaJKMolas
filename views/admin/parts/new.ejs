@@ -1,0 +1,62 @@
+<%- include("../../partials/header.ejs") %>
+<%- include("../../partials/navbar.ejs") %>
+
+<div class="container">
+    <hr>
+    <div class="card">
+        <div class="card-header">
+            <h2>Cadastro de Peça</h2>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="/parts/save">
+                <label>Nome:</label><input class="form-control" type="text" name="name" placeholder="Defina o nome para a peça"><br>
+                <label>Fornecedor:</label><input class="form-control" type="text" name="seller" placeholder="Defina o nome do fornecedor"><br>
+                <label>Valor R$:</label><input class="form-control" type="number" step="0.01" name="value" placeholder="0000,00"><br>
+                <label style="padding-right: 22px;">Tipo de peça:</label><br>
+                <select name="type" id="type" class="form-control-sm">
+                    <option value="" disabled selected>Tipo</option>
+                    <% tipos.forEach((tipos) =>{ %>
+                        <option value="<%= tipos.id %>"><%=tipos.name%></option>
+                    <% }) %>
+                    <option value="novo">Adicionar um novo</option>
+                </select>
+                    <div id="newType" style="display:none;padding-top:10px">
+                        <input type="text" class="form-control-sm" name="newType" placeholder="Digite o novo tipo">
+                    </div>
+                    <br><br>
+                <label>Compatíbilidade:</label><br>
+                <select name="compatibility" id="compatibility" class="form-control-sm">
+                    <option value="" disabled selected>Marca</option>
+                    <% compativel.forEach((compativel) =>{ %>
+                        <option value="<%= compativel.id %>"><%=compativel.name%></option>
+                    <% }); %>
+                    <option value="novo">Adicionar um novo</option>
+                </select>
+                <div id="newCompatibility" style="display:none;padding-top:10px">
+                    <input type="text" class="form-control-sm" name="newCompatibility" placeholder="Digite a nova marca">
+                </div>
+                <br><br>
+                    
+                <button class="btn btn-success">Cadastrar</button>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+    document.getElementById('type').addEventListener('change', function() {
+      if (this.value === 'novo') {
+        document.getElementById('newType').style.display = 'block';
+      } else {
+        document.getElementById('newType').style.display = 'none';
+      }
+    });
+  
+    document.getElementById('compatibility').addEventListener('change', function() {
+      if (this.value === 'novo') {
+        document.getElementById('newCompatibility').style.display = 'block';
+      } else {
+        document.getElementById('newCompatibility').style.display = 'none';
+      }
+    });
+  </script>
+<%- include("../../partials/footer.ejs") %>

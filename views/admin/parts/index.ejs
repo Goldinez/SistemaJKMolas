@@ -1,0 +1,54 @@
+<%- include("../../partials/header.ejs") %>
+<%- include("../../partials/navbar.ejs") %>
+
+<div class="container">
+    <hr>
+    <h2>Peças Cadastradas</h2>
+    <a class="btn btn-success" href="/parts/cadastrar">Cadastrar novo peça</a>
+    <hr>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nome</th>
+                <th>Fornecedor</th>
+                <th>Valor R$</th>
+                <th>Tipo Peça</th>
+                <th>Marca Compativel</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            <% console.log(parts) %>
+            <% parts.forEach(Part => { %>
+                <tr>
+                    <th><%= Part.id %></th>
+                    <th><%= Part.name%></th>
+                    <th><%= Part.seller%></th>
+                    <td>R$ <%= Part.value.toFixed(2) %></td>
+                    <td><%= Part.type_part.name %></td>
+                    <td><%= Part.compatibility_part.name %></td>
+                    <th>
+                        <a href="/parts/editar/<%= Part.id %>" class="btn btn-warning">Editar</a>
+                        <form method="POST" action="/parts/deletar" style="display:inline" onsubmit="fnConfirmDelete(event, this)">
+                            <input type="hidden" name="id" value="<%= Part.id %>">
+                            <button class="btn btn-danger">Deletar</button>
+                        </form>
+                    </th>
+                </tr>
+            <% }) %> 
+        </tbody>
+    </table>
+</div>
+
+
+<%- include("../../partials/footer.ejs") %>
+<script>
+    function fnConfirmDelete(event, form){
+        event.preventDefault();
+        var decision = confirm("Você quer deletar essa peça?");
+        if(decision){
+            form.submit();
+        }        
+    }
+</script>
