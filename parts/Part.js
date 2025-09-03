@@ -25,10 +25,6 @@ const Part = connection.define("parts", {
     type: DataTypes.INTEGER,
     allowNull: false
   },
-  compatibility_id: { // Ajustei o nome da coluna para snake_case
-    type: DataTypes.INTEGER,
-    allowNull: false
-  }
 }, {
   timestamps: false, // Não cria createdAt/updatedAt
   underscored: true // Usar snake_case nas colunas
@@ -40,14 +36,6 @@ TypePart.hasMany(Part, {
 });
 Part.belongsTo(TypePart, {
   foreignKey: "type_id"
-});
-
-// Relacionamento com CompatibilityPart
-CompatibilityPart.hasMany(Part, {
-  foreignKey: "compatibility_id"
-});
-Part.belongsTo(CompatibilityPart, {
-  foreignKey: "compatibility_id"
 });
 
 module.exports = Part;

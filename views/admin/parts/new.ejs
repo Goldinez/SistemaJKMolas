@@ -9,54 +9,111 @@
         </div>
         <div class="card-body">
             <form method="POST" action="/parts/save">
-                <label>Nome:</label><input class="form-control" type="text" name="name" placeholder="Defina o nome para a peça"><br>
-                <label>Fornecedor:</label><input class="form-control" type="text" name="seller" placeholder="Defina o nome do fornecedor"><br>
-                <label>Valor R$:</label><input class="form-control" type="number" step="0.01" name="value" placeholder="0000,00"><br>
+                <!-- Nome -->
+                <label>Nome:</label>
+                <input class="form-control" type="text" name="name" placeholder="Defina o nome para a peça"><br>
+
+                <!-- Fornecedor -->
+                <label>Fornecedor:</label>
+                <input class="form-control" type="text" name="seller" placeholder="Defina o nome do fornecedor"><br>
+
+                <!-- Valor -->
+                <label>Valor R$:</label>
+                <input class="form-control" type="number" step="0.01" name="value" placeholder="0000,00"><br>
+
+                <!-- Tipo de peça -->
                 <label style="padding-right: 22px;">Tipo de peça:</label><br>
                 <select name="type" id="type" class="form-control-sm">
                     <option value="" disabled selected>Tipo</option>
-                    <% tipos.forEach((tipos) =>{ %>
-                        <option value="<%= tipos.id %>"><%=tipos.name%></option>
+                    <% tipos.forEach((tipo) => { %>
+                        <option value="<%= tipo.id %>"><%= tipo.name %></option>
                     <% }) %>
                     <option value="novo">Adicionar um novo</option>
                 </select>
-                    <div id="newType" style="display:none;padding-top:10px">
-                        <input type="text" class="form-control-sm" name="newType" placeholder="Digite o novo tipo">
-                    </div>
-                    <br><br>
-                <label>Compatíbilidade:</label><br>
-                <select name="compatibility" id="compatibility" class="form-control-sm">
-                    <option value="" disabled selected>Marca</option>
-                    <% compativel.forEach((compativel) =>{ %>
-                        <option value="<%= compativel.id %>"><%=compativel.name%></option>
-                    <% }); %>
-                    <option value="novo">Adicionar um novo</option>
-                </select>
-                <div id="newCompatibility" style="display:none;padding-top:10px">
-                    <input type="text" class="form-control-sm" name="newCompatibility" placeholder="Digite a nova marca">
+                <div id="newType" style="display:none;padding-top:10px">
+                    <input type="text" class="form-control-sm" name="newType" placeholder="Digite o novo tipo">
                 </div>
                 <br><br>
-                    
+
+                <!-- Compatibilidades -->
+                <label>Compatibilidade:</label><br>
+                <div id="compatibilityContainer">
+                    <div class="compatibilityItem d-flex align-items-center mb-2">
+                        <select name="compatibility[]" class="form-control-sm compatibilitySelect me-2">
+                            <option value="" disabled selected>Marca</option>
+                            <% compativel.forEach((comp) => { %>
+                                <option value="<%= comp.id %>"><%= comp.name %></option>
+                            <% }) %>
+                            <option value="novo">Adicionar um novo</option>
+                        </select>
+                        <div class="newCompatibility" style="display:none;padding-top:0;">
+                            <input type="text" class="form-control-sm" name="newCompatibility[]" placeholder="Digite a nova marca">
+                        </div>
+                        <button type="button" class="btn btn-danger btn-sm ms-2 removeCompatibility">×</button>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm mt-2" id="addCompatibility">+ Adicionar outra marca</button>
+                <br><br>
+
                 <button class="btn btn-success">Cadastrar</button>
             </form>
         </div>
     </div>
 </div>
+
 <script>
+    // Mostrar/ocultar novo tipo
     document.getElementById('type').addEventListener('change', function() {
-      if (this.value === 'novo') {
-        document.getElementById('newType').style.display = 'block';
-      } else {
-        document.getElementById('newType').style.display = 'none';
-      }
+        document.getElementById('newType').style.display = this.value === 'novo' ? 'block' : 'none';
     });
-  
-    document.getElementById('compatibility').addEventListener('change', function() {
-      if (this.value === 'novo') {
-        document.getElementById('newCompatibility').style.display = 'block';
-      } else {
-        document.getElementById('newCompatibility').style.display = 'none';
-      }
+
+    // Função para mostrar/ocultar campo "novo" para compatibilidade
+    function attachCompatibilityHandler(selectElement) {
+        const newCompDiv = selectElement.closest('.compatibilityItem').querySelector('.newCompatibility');
+        selectElement.addEventListener('change', function () {
+            newCompDiv.style.display = this.value === 'novo' ? 'block' : 'none';
+        });
+        if (selectElement.value === 'novo') {
+            newCompDiv.style.display = 'block';
+        }
+    }
+
+    // Função para remover um bloco de compatibilidade
+    function attachRemoveHandler(button) {
+        button.addEventListener('click', function () {
+            const container = document.getElementById('compatibilityContainer');
+            const item = this.closest('.compatibilityItem');
+            if (container.querySelectorAll('.compatibilityItem').length > 1) {
+                item.remove();
+            } else {
+                item.querySelector('.compatibilitySelect').value = "";
+                item.querySelector('.newCompatibility input').value = "";
+                item.querySelector('.newCompatibility').style.display = 'none';
+            }
+        });
+    }
+
+    // Inicializa handlers existentes
+    document.querySelectorAll('.compatibilitySelect').forEach(attachCompatibilityHandler);
+    document.querySelectorAll('.removeCompatibility').forEach(attachRemoveHandler);
+
+    // Botão adicionar nova compatibilidade
+    document.getElementById('addCompatibility').addEventListener('click', function () {
+        const container = document.getElementById('compatibilityContainer');
+        const template = container.querySelector('.compatibilityItem');
+        const newItem = template.cloneNode(true);
+
+        // Limpa valores
+        newItem.querySelector('.compatibilitySelect').value = "";
+        newItem.querySelector('.newCompatibility').style.display = 'none';
+        newItem.querySelector('input').value = "";
+
+        // Reaplica handlers
+        attachCompatibilityHandler(newItem.querySelector('.compatibilitySelect'));
+        attachRemoveHandler(newItem.querySelector('.removeCompatibility'));
+
+        container.appendChild(newItem);
     });
-  </script>
+</script>
+
 <%- include("../../partials/footer.ejs") %>

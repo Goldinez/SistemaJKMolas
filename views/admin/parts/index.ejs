@@ -27,7 +27,15 @@
                     <th><%= Part.seller%></th>
                     <td>R$ <%= Part.value.toFixed(2) %></td>
                     <td><%= Part.type_part.name %></td>
-                    <td><%= Part.compatibility_part.name %></td>
+                    <td>
+                    <% if (Part.compatibilities && Part.compatibilities.length > 0) { %>
+                        <% Part.compatibilities.forEach(c => { %>
+                        <span class="badge bg-secondary"><%= c.name %></span>
+                        <% }) %>
+                    <% } else { %>
+                        <span class="text-muted">Nenhuma</span>
+                    <% } %>
+                    </td>
                     <th>
                         <a href="/parts/editar/<%= Part.id %>" class="btn btn-warning">Editar</a>
                         <form method="POST" action="/parts/deletar" style="display:inline" onsubmit="fnConfirmDelete(event, this)">

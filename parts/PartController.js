@@ -1,8 +1,10 @@
 const express = require("express");
 const router = express.Router();
+const sequelize = require("../database/database.js");
 const CompatibilityPart = require("./CompatibilityPart.js");
 const TypePart = require("./TypePart.js");
 const Part = require("./Part.js");
+const Part_Compatibility = require("./Part_Compatibility.js");
 const { Op } = require("sequelize");
 
 router.get("/parts/cadastrar", async (req, res) =>{
@@ -15,48 +17,93 @@ router.get("/parts/cadastrar", async (req, res) =>{
    }
 });
 
-router.post("/parts/save", async (req, res) =>{
+router.post("/parts/save", async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    let { name, seller, value, type, newType, compatibility, newCompatibility } = req.body;
 
-   try{
-      let {name, seller, value, type, newType, compatibility, newCompatibility} = req.body;
+    // Garante arrays (mesmo que venha um único valor)
+    if (!Array.isArray(compatibility)) compatibility = compatibility ? [compatibility] : [];
+    if (!Array.isArray(newCompatibility)) newCompatibility = newCompatibility ? [newCompatibility] : [];
 
-      if(type == "novo" && newType){
-         const novotipo = await TypePart.create({name: newType});
-         type = novotipo.id;
+    // Tipo novo
+    if (type === "novo" && newType) {
+      const novoTipo = await TypePart.create({ name: newType }, { transaction: t });
+      type = novoTipo.id;
+    }
+
+    // Cria a peça (sem compatibility_id!)
+    const part = await Part.create(
+      { name, seller, value, type_id: type },
+      { transaction: t }
+    );
+
+    // Monta lista de IDs de compatibilidade
+    const compatIds = [];
+
+    // Percorre os selects na mesma ordem dos inputs "newCompatibility[]"
+    for (let i = 0; i < compatibility.length; i++) {
+      const comp = compatibility[i];
+      const maybeNew = (newCompatibility[i] || "").trim();
+
+      if (comp === "novo" && maybeNew) {
+        const created = await CompatibilityPart.create(
+          { name: maybeNew },
+          { transaction: t }
+        );
+        compatIds.push(created.id);
+      } else if (comp && comp !== "novo") {
+        const id = Number(comp);
+        if (!Number.isNaN(id)) compatIds.push(id);
       }
+    }
 
-      if(compatibility == "novo" && newCompatibility){
-         const novocompativel = await CompatibilityPart.create({name: newCompatibility});
-         compatibility = novocompativel.id;
-      }
+    // Associa N:N (substitui o conjunto atual)
+    if (compatIds.length > 0) {
+      await part.setCompatibilities(compatIds, { transaction: t });
+    }
 
-      await Part.create({name: name, seller: seller, value: value, type_id: type, compatibility_id: compatibility});
-
-      res.redirect("/parts/");
-   }catch (error) {
-      console.error(error);
-   }
+    await t.commit();
+    return res.redirect("/parts/");
+  } catch (error) {
+    console.error(error);
+    await t.rollback();
+    return res.status(500).send("Erro ao salvar a peça");
+  }
 });
 
 
-router.get("/parts/", async (req, res) =>{
-   try{
-      const parts = await Part.findAll({
-         include: [TypePart, CompatibilityPart]
-      });
+router.get("/parts/", async (req, res) => {
+  try {
+    const parts = await Part.findAll({
+      include: [
+        TypePart,
+        {
+          model: CompatibilityPart,
+          as: "compatibilities"   // <- usar o mesmo alias do relacionamento
+        }
+      ]
+    });
 
-      res.render("./admin/parts/index.ejs", {parts});
-   }catch(error){
-      console.error(error);
-   }
+    res.render("./admin/parts/index.ejs", { parts });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Erro ao buscar peças");
+  }
 });
 
 router.get("/parts/editar/:id", async (req, res) =>{
    var id = req.params.id;
    try{
       const part = await Part.findByPk(id, {
-         include: [TypePart, CompatibilityPart]
-      });
+         include: [
+            TypePart,
+            {
+               model: CompatibilityPart,
+               as: "compatibilities" // usar o alias correto
+            }
+         ]
+   });
 
       if(part){
          const types = await TypePart.findAll();
@@ -75,26 +122,62 @@ router.get("/parts/editar/:id", async (req, res) =>{
    }
 });
 
-router.post("/parts/update", async (req, res) =>{
-   let {id, name, seller, value, type, newType, compatibility, newCompatibility} = req.body;
-   try{
-      if(type == "novo" && newType){
-         const novotipo = await TypePart.create({name: newType});
-         type = novotipo.id;
-      }
+router.post("/parts/update", async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    let { id, name, seller, value, type, newType, compatibility, newCompatibility } = req.body;
 
-      if(compatibility == "novo" && newCompatibility){
-         const novocompativel = await CompatibilityPart.create({name: newCompatibility});
-         compatibility = novocompativel.id;
+    // Garante arrays
+    if (!Array.isArray(compatibility)) compatibility = compatibility ? [compatibility] : [];
+    if (!Array.isArray(newCompatibility)) newCompatibility = newCompatibility ? [newCompatibility] : [];
+
+    // Tipo novo
+    if (type === "novo" && newType) {
+      const novotipo = await TypePart.create({ name: newType }, { transaction: t });
+      type = novotipo.id;
+    }
+
+    // Atualiza a peça
+    const part = await Part.findByPk(id, { transaction: t });
+    if (!part) {
+      await t.rollback();
+      return res.redirect("/parts");
+    }
+
+    await part.update(
+      { name, seller, value, type_id: type },
+      { transaction: t }
+    );
+
+    // Processa compatibilidades
+    const compatIds = [];
+
+    for (let i = 0; i < compatibility.length; i++) {
+      const comp = compatibility[i];
+      const maybeNew = (newCompatibility[i] || "").trim();
+
+      if (comp === "novo" && maybeNew) {
+        const created = await CompatibilityPart.create(
+          { name: maybeNew },
+          { transaction: t }
+        );
+        compatIds.push(created.id);
+      } else if (comp && comp !== "novo") {
+        const id = Number(comp);
+        if (!Number.isNaN(id)) compatIds.push(id);
       }
-      await Part.update({name: name, seller: seller, value: value, type_id: type, compatibility_id: compatibility},{
-         where: {id: id}
-      });
-      res.redirect("/parts");
-   }catch (error) {
-      console.error(error);
-      res.redirect("/parts");
-   }
+    }
+
+    // Atualiza associação N:N
+    await part.setCompatibilities(compatIds, { transaction: t });
+
+    await t.commit();
+    res.redirect("/parts");
+  } catch (error) {
+    console.error(error);
+    await t.rollback();
+    res.redirect("/parts");
+  }
 });
 
 router.post("/parts/deletar", async (req, res) =>{
