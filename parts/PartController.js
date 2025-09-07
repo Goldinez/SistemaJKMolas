@@ -73,19 +73,54 @@ router.post("/parts/save", async (req, res) => {
 });
 
 
-router.get("/parts/", async (req, res) => {
+router.get("/parts", async (req, res) => {
   try {
-    const parts = await Part.findAll({
-      include: [
-        TypePart,
-        {
-          model: CompatibilityPart,
-          as: "compatibilities"   // <- usar o mesmo alias do relacionamento
-        }
-      ]
+    const { search, type, compatibility, page = 1 } = req.query;
+    const limit = 10; // itens por página
+    const offset = (page - 1) * limit;
+
+    const where = {};
+    if (search) {
+      where.name = { [Op.like]: `%${search}%` };
+    }
+    if (type) {
+      where.type_id = type;
+    }
+
+    // Condição para compatibilidade (via associação N:N)
+    const include = [
+      { model: TypePart },
+      {
+        model: CompatibilityPart,
+        as: "compatibilities",
+        ...(compatibility
+          ? { where: { id: compatibility } }
+          : {}),
+      },
+    ];
+
+    const { count, rows: parts } = await Part.findAndCountAll({
+      where,
+      include,
+      distinct: true, // importante p/ count correto com N:N
+      limit,
+      offset,
     });
 
-    res.render("./admin/parts/index.ejs", { parts });
+    const totalPages = Math.ceil(count / limit);
+    const types = await TypePart.findAll();
+    const compatibilities = await CompatibilityPart.findAll();
+
+    res.render("./admin/parts/index.ejs", {
+      parts,
+      types,
+      compatibilities,
+      search,
+      selectedType: type,
+      selectedCompatibility: compatibility,
+      page: Number(page),
+      totalPages,
+    });
   } catch (error) {
     console.error(error);
     res.status(500).send("Erro ao buscar peças");
