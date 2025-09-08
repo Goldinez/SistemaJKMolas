@@ -1,0 +1,44 @@
+<%- include("../../partials/header.ejs") %>
+<%- include("../../partials/navbar.ejs") %>
+
+<div class="container mt-4">
+  <h2>Pagamentos do Pedido #<%= order.id %></h2>
+  <p><strong>Cliente:</strong> <%= order.customer.name %></p>
+  <p><strong>Valor Total:</strong> R$ <%= Number(order.valor_total).toFixed(2) %></p>
+  <p><strong>Status Pagamento:</strong> <%= order.status_pagamento %></p>
+
+  <table class="table table-bordered mt-3">
+    <thead>
+      <tr>
+        <th>Parcela</th>
+        <th>Valor</th>
+        <th>Vencimento</th>
+        <th>Status</th>
+        <th>Ação</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% order.installment_orders.forEach(parcela => { %>
+        <tr>
+          <td><%= parcela.numero_parcela %> / <%= order.parcelas_total %></td>
+          <td>R$ <%= Number(parcela.valor).toFixed(2) %></td>
+          <td><%= new Date(parcela.data_vencimento).toLocaleDateString("pt-BR") %></td>
+          <td><%= parcela.status %></td>
+          <td>
+            <% if (parcela.status === "pendente") { %>
+              <form method="POST" action="/orders/pagamentos/<%= order.id %>/baixa/<%= parcela.id %>">
+                <button type="submit" class="btn btn-success btn-sm">Dar Baixa</button>
+              </form>
+            <% } else { %>
+              <span class="badge bg-success">Pago</span>
+            <% } %>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+
+  <a href="/orders" class="btn btn-secondary">Voltar</a>
+</div>
+
+<%- include("../../partials/footer.ejs") %>

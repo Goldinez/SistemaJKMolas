@@ -1,59 +1,104 @@
 <%- include("../../partials/header.ejs") %>
 <%- include("../../partials/navbar.ejs") %>
-<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
-<div class="container">
-    <hr>
-    <div class="card">
-        <div class="card-header">
-            <h2>Criar novo pedido</h2>
-        </div>
-        <div class="card-body">
-            <form method="POST" action="/orders/save">
-                <label for="clienteSelect">Cliente:</label>
-                <select class="form-control" name="clienteId" id="clienteSelect" style="width: 100%;">
-                    <option value="novo">Escolha a opção novo cliente ou pesquise um cliente cadastrado</option>
-                </select><br><br>
-                <div class="card-body" id="novoCliente" style="display: none">
-                        <label>Nome:</label>
-                        <input type="text" class="form-control" name="clienteName">
-                        
-                        <label>CPF:</label>
-                        <input type="number" class="form-control" name="clienteCpfCnpj" ><br>
-                        
-                        <label>Contato:</label>
-                        <input type="number" class="form-control" name="clienteContato]"><br>
-        
-                        <button id="removerCliente" type="button">Remover</button><br>
-                </div>
-                <button id="botaoCliente" type="button" class="btn btn-primary">Novo cliente</button><br><br>
+<!-- jQuery -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<!-- Select2 -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0/dist/js/select2.min.js"></script>
 
-                <label>Placa do Veículo:</label><input class="form-control w-30" type="text" name="placa_veiculo"><br>
-                <div class="card-body">
-                    <h3 class="card-header">Itens do Pedido</h3><br>
-                    <div id="itensPedido"></div>
-                    <button type="button" class="btn btn-primary"onclick="adicionarItem()">Adicionar Item</button><br>
-                </div>
-                <label>Parcelas:</label><input class="form-control" type="text" name="parcela" placeholder="Quantidade de parcelas"><br>
-                <label>Método de Pagamento:</label>
-                <select name="metodo_pagamento" class="form-control-sm">
-                    <option value="dinheiro">Dinheiro</option>
-                    <option value="cartao">Cartão</option>
-                    <option value="boleto">Boleto</option>
-                    <option value="pix">PIX</option>
-                </select><br>
-                <div id="totalPedido" class="text-right font-weight-bold p-3" style="font-size: 1.2rem;"></div>
-                <label>Observações:</label><textarea name="observacoes" class="form-control"></textarea><br>
-                <button class="btn btn-success">Cadastrar Pedido</button>
-            </form>
-        </div>
+<div class="container">
+  <hr>
+  <div class="card">
+    <div class="card-header">
+      <h2>Editar Pedido #<%= order.id %></h2>
     </div>
+    <div class="card-body">
+      <form method="POST" action="/orders/update/<%= order.id %>">
+        
+        <label>Cliente:</label>
+        <input type="text" class="form-control" value="<%= order.customer.name %>" disabled>
+        <br>
+
+        <label>Placa do Veículo:</label>
+        <input class="form-control w-30" type="text" name="placa_veiculo" value="<%= order.placa_veiculo %>"><br>
+
+        <div class="card-body">
+          <h3 class="card-header">Itens do Pedido</h3><br>
+          <div id="itensPedido">
+            <% if (order.item_orders && order.item_orders.length > 0) { %>
+              <% order.item_orders.forEach(function(item, index) { %>
+                <div class="item-container" data-index="<%= index %>">
+                  <div class="form-group">
+                    <label>Tipo:</label>
+                    <select name="itens[<%= index %>][tipo]" class="form-control tipoItem" data-index="<%= index %>">
+                      <option value="peca" <%= item.tipo === "peca" ? "selected" : "" %>>Peça</option>
+                      <option value="mao_de_obra" <%= item.tipo === "mao_de_obra" ? "selected" : "" %>>Mão de Obra</option>
+                    </select>
+                  </div>
+
+                  <% if (item.tipo === "peca") { %>
+                    <div class="form-group item-peca">
+                      <label>Peça:</label>
+                      <select name="itens[<%= index %>][part_id]" class="form-control selectPart" 
+                              data-index="<%= index %>" data-id="<%= item.part_id %>"></select>
+                      <input type="hidden" name="itens[<%= index %>][descricao_hidden]" 
+                            class="descricaoItem" value="<%= item.descricao %>">
+                    </div>
+                  <% } else { %>
+                    <div class="form-group item-mao-obra">
+                      <label>Descrição:</label>
+                      <input type="text" name="itens[<%= index %>][descricao]" class="form-control" value="<%= item.descricao %>">
+                    </div>
+                  <% } %>
+
+                  <div class="form-group">
+                    <label>Quantidade:</label>
+                    <input type="number" class="form-control quantidadeItem" 
+                          name="itens[<%= index %>][quantidade]" value="<%= item.quantidade %>" min="1">
+                  </div>
+
+                  <div class="form-group">
+                    <label>Valor:</label>
+                    <input type="number" class="form-control valorItem" 
+                          name="itens[<%= index %>][valor]" step="0.01" value="<%= item.valor %>">
+                  </div>
+
+                  <button type="button" onclick="removerItem(this)" class="btn btn-danger">Remover</button>
+                  <hr>
+                </div>
+              <% }) %>
+            <% } %>
+          </div>
+          <button type="button" class="btn btn-primary" onclick="adicionarItem()">Adicionar Item</button>
+        </div>
+
+        <label>Método de Pagamento:</label>
+        <select name="metodo_pagamento" class="form-control-sm">
+          <option value="dinheiro" <%= order.metodo_pagamento === "dinheiro" ? "selected" : "" %>>Dinheiro</option>
+          <option value="cartao" <%= order.metodo_pagamento === "cartao" ? "selected" : "" %>>Cartão</option>
+          <option value="boleto" <%= order.metodo_pagamento === "boleto" ? "selected" : "" %>>Boleto</option>
+          <option value="pix" <%= order.metodo_pagamento === "pix" ? "selected" : "" %>>PIX</option>
+        </select><br>
+
+        <label>Status do Pedido:</label>
+        <select name="status_pedido" class="form-control-sm">
+          <option value="em andamento" <%= order.status_pedido === "em andamento" ? "selected" : "" %>>Em andamento</option>
+          <option value="concluido" <%= order.status_pedido === "concluido" ? "selected" : "" %>>Concluído</option>
+        </select><br>
+
+        <label>Observações:</label>
+        <textarea name="observacoes" class="form-control"><%= order.observacoes %></textarea><br>
+
+        <button class="btn btn-success">Salvar Alterações</button>
+      </form>
+    </div>
+  </div>
 </div>
 
 <%- include("../../partials/footer.ejs") %>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
+
 <script>
-    function adicionarItem() {
+      function adicionarItem() {
         const container = document.getElementById("itensPedido");
         const index = container.children.length;
 
@@ -179,46 +224,14 @@
         atualizarTotalPedido();
     }
 
-    $(document).ready(function() {
-        $('#clienteSelect').select2({
-            ajax: {
-                url: '/customers/buscar',
-                dataType: 'json',
-                delay: 250,
-                data: function (params) {
-                    return {
-                        term: params.term   // 🔹 usar "term", que o controller já entende
-                    };
-                },
-                processResults: function (data) {
-                    return {
-                        results: data.map(cliente => ({
-                            id: cliente.id,
-                            text: cliente.name
-                        }))
-                    };
-                },
-                cache: true
-            },
-            minimumInputLength: 3,
-            placeholder: 'Selecione um cliente'
-        });
+    $(".selectPart").each(function() {
+      const select = $(this);
+      const descricao = select.closest(".item-container").find(".descricaoItem").val();
+      const id = select.data("id");
 
-        document.getElementById('botaoCliente').addEventListener("click", function() {
-            document.getElementById('novoCliente').style.display = 'block';
-            document.getElementById('botaoCliente').style.display = 'none';
-            $('#clienteSelect').val('novo').trigger('change');
-        });
-
-        document.getElementById('removerCliente').addEventListener("click", function() {
-            document.getElementById('novoCliente').style.display = 'none';
-            document.getElementById('botaoCliente').style.display = 'block';
-        });
-
-        atualizarEventosQuantidade();
-        $(document).on('input', '.valorItem', function () {
-            atualizarTotalPedido();
-        });
-
+      if (descricao) {
+        const option = new Option(descricao, id, true, true);
+        select.append(option).trigger("change");
+      }
     });
 </script>

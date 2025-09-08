@@ -173,4 +173,147 @@ router.get("/orders/editar/:id", async (req, res) =>{
    }
 });
 
+router.post("/orders/update/:id", async (req, res) => {
+  const { id } = req.params;
+  const {
+    placa_veiculo,
+    metodo_pagamento,
+    observacoes,
+    status_pedido,
+    itens,
+  } = req.body;
+
+  try {
+    // Atualiza informações principais do pedido
+    await Order.update(
+      {
+        placa_veiculo,
+        metodo_pagamento,
+        observacoes,
+        status_pedido,
+      },
+      { where: { id } }
+    );
+
+    // Remove itens antigos e recria os itens do pedido
+    await ItemOrder.destroy({ where: { order_id: id } });
+
+    let valorTotal = 0;
+    for (const item of itens) {
+      const descricao = typeof item.descricao === "string"
+        ? item.descricao
+        : item.descricao_hidden || "";
+
+      await ItemOrder.create({
+        order_id: id,
+        descricao,
+        valor: parseFloat(item.valor),
+        tipo: item.tipo,
+        quantidade: parseInt(item.quantidade),
+      });
+
+      valorTotal += parseFloat(item.valor) * parseInt(item.quantidade);
+    }
+
+    // Atualiza valor total do pedido
+    await Order.update({ valor_total: valorTotal.toFixed(2) }, { where: { id } });
+
+    res.redirect("/orders");
+  } catch (error) {
+    console.error("Erro ao atualizar pedido:", error);
+    res.status(500).send("Erro ao atualizar pedido: " + error.message);
+  }
+});
+
+router.get("/orders/pagamentos/:id", async (req, res) => {
+  try {
+    const order = await Order.findByPk(req.params.id, {
+      include: [Customer, InstallmentOrder]
+    });
+
+    if (!order) {
+      return res.redirect("/orders");
+    }
+
+    res.render("./admin/orders/payments.ejs", { order });
+  } catch (error) {
+    console.error("Erro ao carregar pagamentos:", error);
+    res.status(500).send("Erro ao carregar pagamentos");
+  }
+});
+
+router.post("/orders/pagamentos/:orderId/baixa/:installmentId", async (req, res) => {
+  try {
+    const { orderId, installmentId } = req.params;
+
+    // Atualiza a parcela para "pago"
+    await InstallmentOrder.update(
+      { status: "pago" },
+      { where: { id: installmentId, order_id: orderId } }
+    );
+
+    // Recalcular parcelas pagas
+    const parcelasPagas = await InstallmentOrder.count({
+      where: { order_id: orderId, status: "pago" }
+    });
+
+    const order = await Order.findByPk(orderId);
+
+    let statusPagamento = "pendente";
+    if (parcelasPagas === order.parcelas_total) {
+      statusPagamento = "pago";
+    } else if (parcelasPagas > 0) {
+      statusPagamento = "parcial";
+    }
+
+    await Order.update(
+      { parcelas_pagas: parcelasPagas, status_pagamento: statusPagamento },
+      { where: { id: orderId } }
+    );
+
+    res.redirect(`/orders/pagamentos/${orderId}`);
+  } catch (error) {
+    console.error("Erro ao dar baixa na parcela:", error);
+    res.status(500).send("Erro ao dar baixa na parcela");
+  }
+});
+
+router.post("/orders/cancel/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Verifica se o pedido existe
+    const order = await Order.findByPk(id, {
+      include: [ItemOrder, InstallmentOrder]
+    });
+
+    if (!order) {
+      return res.status(404).send("Pedido não encontrado");
+    }
+
+    // Remove itens vinculados
+    await ItemOrder.destroy({ where: { order_id: id } });
+
+    // Remove parcelas vinculadas
+    await InstallmentOrder.destroy({ where: { order_id: id } });
+
+    // Atualiza o pedido para cancelado
+    await Order.update(
+      {
+        status_pedido: "cancelado",
+        status_pagamento: "cancelado",
+        valor_total: 0,
+        parcelas_total: 0,
+        parcelas_pagas: 0
+      },
+      { where: { id } }
+    );
+
+    res.redirect("/orders");
+  } catch (error) {
+    console.error("Erro ao cancelar pedido:", error);
+    res.status(500).send("Erro ao cancelar pedido");
+  }
+});
+
 module.exports = router;

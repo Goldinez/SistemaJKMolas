@@ -76,18 +76,18 @@ router.post("/customers/deletar", (req,res) =>{
     }
 })
 
-router.get("/customers/buscar", async(req, res) =>{
-    const termo = req.query.term || "";
+router.get("/customers/buscar", async (req, res) => {
+    const termo = req.query.term || req.query.nome || "";
 
-    try{
+    try {
         const clientes = await Customer.findAll({
-            where:{
+            where: {
                 name: { [Op.like]: `%${termo}%` }
             },
             limit: 10
         });
-        res.json(clientes)
-    }catch (error){
+        res.json(clientes);
+    } catch (error) {
         console.error("Erro ao buscar clientes:", error);
         res.status(500).json({ error: "Erro ao buscar clientes" });
     }

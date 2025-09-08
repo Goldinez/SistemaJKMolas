@@ -86,6 +86,7 @@
           <th>Método Pagamento</th>
           <th>Data Pedido</th>
           <th>Observações</th>
+          <th>Ações</th>
         </tr>
       </thead>
       <tbody>
@@ -107,6 +108,15 @@
               <td><%= p.metodo_pagamento %></td>
               <td><%= new Date(p.data_pedido).toLocaleDateString("pt-BR") %></td>
               <td><%= p.observacoes || "" %></td>
+              <td>
+                <a class="btn btn-primary btn-sm" href="/orders/editar/<%= p.id %>">Editar</a>
+                <a class="btn btn-warning btn-sm" href="/orders/pagamentos/<%= p.id %>">Pagamentos</a>
+                <form method="POST" action="/orders/cancel/<%= p.id %>" style="display:inline;">
+                  <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Tem certeza que deseja cancelar este pedido?')">
+                    Cancelar
+                  </button>
+                </form>
+              </td>
             </tr>
           <% }) %>
         <% } %>
