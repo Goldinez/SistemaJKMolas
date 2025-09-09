@@ -10,14 +10,39 @@
         <div class="card-body">
             <form method="POST" action="/customers/update">
                 <label>Nome:</label><input class="form-control" type="text" name="name" placeholder="Nome do cliente" value="<%= customer.name %>"><br>
-                <label>CPF/CNPJ:</label><input class="form-control" type="text" name="cpf" placeholder="CPF ou CNPJ" value="<%= customer.cpf_cnpj %>"><br>
-                <label>Contato:</label><input class="form-control" type="text" name="phone" placeholder="Número de telefone" value="<%= customer.phone %>"><br>
+                <label>CPF/CNPJ:</label><input class="form-control" id="cpf" type="text" name="cpf" placeholder="CPF ou CNPJ" value="<%= customer.cpf_cnpj %>"><br>
+                <label>Contato:</label><input class="form-control" id="telefone" type="text" name="phone" placeholder="Número de telefone" value="<%= customer.phone %>"><br>
                 <input type="hidden" name="id" value="<%= customer.id %>">
                 <button class="btn btn-success">Atualizar</button>
             </form>
         </div>
     </div>
 </div>
+<script>
+    $(document).ready(function(){
+        //MASCARA PARA CPF/CNPJ
+        var cpfCnpjmasks = ['000.000.000-009', '00.000.000/0000-00'];
+        var options = {
+            onKeyPress: function (cpfcnpj, e, field, options) {
+                var mask = (cpfcnpj.replace(/\D/g, '').length > 11) ? cpfCnpjmasks[1] : cpfCnpjmasks[0];
+                $('#cpf').mask(mask, options);
+            }
+        };
 
+        $('#cpf').mask(cpfCnpjmasks[0], options);
+
+        //MASCARA PARA TELEFONE
+        var TelMasks = ['(00) 0000-00009', '(00) 00000-0000'];
+        var options = {
+            onKeyPress: function (val, e, field, options) {
+                // Se tiver 11 dígitos (com DDD), aplica celular
+                var mask = (val.replace(/\D/g, '').length === 11) ? TelMasks[1] : TelMasks[0];
+                $('#telefone').mask(mask, options);
+            }
+        };
+
+        $('#telefone').mask(TelMasks[0], options);
+    });
+</script>
 
 <%- include("../../partials/footer.ejs") %>
