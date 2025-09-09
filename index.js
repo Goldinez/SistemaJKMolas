@@ -1,6 +1,7 @@
 const express = require("express");
 const app = express();
 const connection = require("./database/database.js");
+const path = require("path");
 
 const TypePartController = require("./parts/TypePartController.js");
 const CompatibilityPartController = require("./parts/CompatibilityPartController.js");
@@ -11,8 +12,9 @@ const Order = require("./orders/Order");
 const Customer = require("./customers/Customer");
 const Part = require("./parts/Part");
 
+app.set("views", path.join(__dirname, "views")); 
 app.set("view engine", "ejs");
-app.use(express.static("public"));
+app.use(express.static(path.join(__dirname, "public")));
 
 connection.authenticate().then(() =>{
     console.log("Conexão feita com sucesso!");
@@ -54,6 +56,18 @@ app.get("/", async (req, res) =>{
   }
 });
 
-app.listen(8080, () =>{
-    console.log("O servidor está rodando");
-});
+async function startServer() {
+  try {
+    // Cria todas as tabelas que ainda não existem
+    await connection.sync({ alter: true }); 
+    console.log("Tabelas sincronizadas com sucesso!");
+
+    app.listen(8080, () => {
+      console.log("Servidor rodando na porta 8080");
+    });
+  } catch (err) {
+    console.error("Erro ao sincronizar as tabelas:", err);
+  }
+}
+
+module.exports = { app, startServer };
