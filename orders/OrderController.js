@@ -63,7 +63,7 @@ router.post('/orders/save', async (req, res) => {
 
       await ItemOrder.create({
         order_id: newOrder.id,
-        descricao,
+        descricao: item.descricao || item.descricao_hidden || '',
         valor: parseFloat(item.valor),
         tipo: item.tipo,
         quantidade: parseInt(item.quantidade),
@@ -206,7 +206,7 @@ router.post("/orders/update/:id", async (req, res) => {
 
       await ItemOrder.create({
         order_id: id,
-        descricao,
+        descricao: item.descricao || item.descricao_hidden || '',
         valor: parseFloat(item.valor),
         tipo: item.tipo,
         quantidade: parseInt(item.quantidade),
