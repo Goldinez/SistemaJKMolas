@@ -1,7 +1,7 @@
 <%- include("../../partials/header.ejs") %>
 <%- include("../../partials/navbar.ejs") %>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
-
+<%console.log(order)%>
 <div class="container">
   <hr>
   <div class="card">
@@ -75,7 +75,9 @@
           <option value="boleto" <%= order.metodo_pagamento === "boleto" ? "selected" : "" %>>Boleto</option>
           <option value="pix" <%= order.metodo_pagamento === "pix" ? "selected" : "" %>>PIX</option>
         </select><br>
-
+        <label>Número de Parcelas:</label>
+        <input type="number" name="parcela" class="form-control w-30" value="<%= order.parcelas_total %>" min="1" required>
+        <br>
         <label>Status do Pedido:</label>
         <select name="status_pedido" class="form-control-sm">
           <option value="em andamento" <%= order.status_pedido === "em andamento" ? "selected" : "" %>>Em andamento</option>
