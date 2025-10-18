@@ -182,45 +182,57 @@ router.post("/orders/update/:id", async (req, res) => {
     metodo_pagamento,
     observacoes,
     status_pedido,
-    itens, // O array de novos itens
-    parcela, // ESSENCIAL: Você precisa enviar o novo número de parcelas
+    itens,
+    parcela, // novo número de parcelas
   } = req.body;
 
-  // 1. Iniciar uma transação
   const t = await connection.transaction();
 
   try {
-    // 2. Calcular o novo valor_total com base nos *novos* itens
+    // 1. Calcular novo valor_total
     let valorTotal = 0;
     if (itens && itens.length > 0) {
       valorTotal = itens.reduce((acc, item) => {
         return acc + (parseFloat(item.valor) * parseInt(item.quantidade));
       }, 0);
     }
-    
-    const totalParcelas = parseInt(parcela) || 1; // Garante que é um número
 
-    // 3. Atualizar o pedido (Order) UMA ÚNICA VEZ com todos os dados
-    await Order.update({
-      placa_veiculo,
-      metodo_pagamento,
-      observacoes,
-      status_pedido,
-      valor_total: valorTotal.toFixed(2), // Atualiza o valor total
-      parcelas_total: totalParcelas,     // Atualiza o total de parcelas
-    }, {
-      where: { id },
-      transaction: t // Adiciona à transação
-    });
+    const totalParcelas = parseInt(parcela) || 1;
 
-    // 4. Remover itens antigos (ItemOrder)
-    await ItemOrder.destroy({ 
-      where: { order_id: id }, 
-      transaction: t 
-    });
+    // 2. Buscar pedido atual
+    const pedidoAtual = await Order.findByPk(id, { transaction: t });
+    if (!pedidoAtual) {
+      await t.rollback();
+      return res.status(404).send("Pedido não encontrado");
+    }
 
-    // 5. Criar os novos itens do pedido (usando bulkCreate para eficiência)
-    if (itens && itens.length > 0) {
+    const valorAntigo = parseFloat(pedidoAtual.valor_total);
+
+    // 3. Preparar campos para atualizar
+    const camposParaAtualizar = {};
+
+    if (placa_veiculo !== pedidoAtual.placa_veiculo) camposParaAtualizar.placa_veiculo = placa_veiculo;
+    if (metodo_pagamento !== pedidoAtual.metodo_pagamento) camposParaAtualizar.metodo_pagamento = metodo_pagamento;
+    if (observacoes !== pedidoAtual.observacoes) camposParaAtualizar.observacoes = observacoes;
+    if (status_pedido !== pedidoAtual.status_pedido) camposParaAtualizar.status_pedido = status_pedido;
+    if (totalParcelas !== pedidoAtual.parcelas_total) camposParaAtualizar.parcelas_total = totalParcelas;
+    if (valorTotal.toFixed(2) !== valorAntigo.toFixed(2)) camposParaAtualizar.valor_total = valorTotal.toFixed(2);
+
+    // 4. Verifica se há algo para atualizar
+    if (Object.keys(camposParaAtualizar).length === 0) {
+      await t.rollback();
+      return res.redirect("/orders");
+    }
+
+    // 5. Atualiza o pedido
+    await Order.update(camposParaAtualizar, { where: { id }, transaction: t });
+
+    // 6. Atualizar itens somente se o valor_total mudou
+    if (valorTotal.toFixed(2) !== valorAntigo.toFixed(2)) {
+      // Remover itens antigos
+      await ItemOrder.destroy({ where: { order_id: id }, transaction: t });
+
+      // Criar novos itens
       const itensParaCriar = itens.map(item => ({
         order_id: id,
         descricao: item.descricao || item.descricao_hidden || '',
@@ -231,52 +243,38 @@ router.post("/orders/update/:id", async (req, res) => {
       await ItemOrder.bulkCreate(itensParaCriar, { transaction: t });
     }
 
-    // 6. Remover parcelas antigas (InstallmentOrder) - A PARTE QUE FALTAVA
-    await InstallmentOrder.destroy({ 
-      where: { order_id: id }, 
-      transaction: t 
-    });
+    // 7. Atualizar parcelas somente se valor_total ou número de parcelas mudou
+    if (valorTotal.toFixed(2) !== valorAntigo.toFixed(2) || totalParcelas !== pedidoAtual.parcelas_total) {
+      // Remove parcelas antigas (status antigo será perdido apenas aqui)
+      await InstallmentOrder.destroy({ where: { order_id: id }, transaction: t });
 
-    // 7. Criar as novas parcelas (InstallmentOrder) - A PARTE QUE FALTAVA
-    if (totalParcelas > 0 && valorTotal > 0) {
-      
-      // --- Lógica de cálculo de parcela (com ajuste de arredondamento) ---
-      // Calcula o valor padrão da parcela
       const valorParcelaNum = parseFloat((valorTotal / totalParcelas).toFixed(2));
-      // Calcula a última parcela para absorver diferenças de centavos
       const valorUltimaParcela = (valorTotal - (valorParcelaNum * (totalParcelas - 1))).toFixed(2);
-      // -----------------------------------------------------------------
-
       const parcelasParaCriar = [];
-      const dataBase = new Date(); // As novas parcelas serão baseadas na data da *atualização*
+      const dataBase = new Date();
 
       for (let i = 1; i <= totalParcelas; i++) {
         const vencimento = new Date(dataBase);
-        // Sua lógica original: primeira parcela vence "hoje" (mês + 0)
-        vencimento.setMonth(vencimento.getMonth() + (i - 1)); 
+        vencimento.setMonth(vencimento.getMonth() + (i - 1));
 
         parcelasParaCriar.push({
           order_id: id,
           numero_parcela: i,
-          // Usa o valor ajustado se for a última parcela
-          valor: (i === totalParcelas) ? valorUltimaParcela : valorParcelaNum, 
+          valor: (i === totalParcelas) ? valorUltimaParcela : valorParcelaNum,
           data_vencimento: vencimento,
-          status: 'pendente', // Status vem do seu model, não status_pagamento
+          status: 'pendente',
         });
       }
-      
+
       await InstallmentOrder.bulkCreate(parcelasParaCriar, { transaction: t });
     }
 
-    // 8. Se tudo deu certo, "comitar" a transação
+    // 8. Commit da transação
     await t.commit();
-    
     res.redirect("/orders");
 
   } catch (error) {
-    // 9. Se algo deu errado, reverter (rollback)
     await t.rollback();
-    
     console.error("Erro ao atualizar pedido:", error);
     res.status(500).send("Erro ao atualizar pedido: " + error.message);
   }
