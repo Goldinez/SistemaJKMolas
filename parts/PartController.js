@@ -25,13 +25,13 @@ router.post("/parts/save", async (req, res) => {
     // Garante arrays (mesmo que venha um único valor)
     if (!Array.isArray(compatibility)) compatibility = compatibility ? [compatibility] : [];
     if (!Array.isArray(newCompatibility)) newCompatibility = newCompatibility ? [newCompatibility] : [];
-
+    
     // Tipo novo
     if (type === "novo" && newType) {
       const novoTipo = await TypePart.create({ name: newType }, { transaction: t });
       type = novoTipo.id;
     }
-
+    
     // Cria a peça (sem compatibility_id!)
     const part = await Part.create(
       { name, seller, value, type_id: type },

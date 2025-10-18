@@ -1,6 +1,18 @@
 <%- include("../../partials/header.ejs") %>
 <%- include("../../partials/navbar.ejs") %>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
+<style>
+    .is-invalid {
+        border: 2px solid #dc3545 !important;
+        background-color: #ffe6e6 !important;
+    }
+    .error-message {
+        color: #dc3545;
+        font-size: 0.85rem;
+        margin-top: 4px;
+        margin-bottom: 8px;
+    }
+</style>
 <div class="container">
     <hr>
     <div class="card">
@@ -53,6 +65,173 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
 <script>
+    (function() {
+    // Tenta selecionar o form correto; se não achar, usa o primeiro form da página
+    const form = document.querySelector('form[action="/orders/save"]') || document.querySelector('form');
+    if (!form) {
+        console.warn('Validador: nenhum <form> encontrado na página.');
+        return;
+    }
+
+    function clearErrors(scope = document) {
+        scope.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+        scope.querySelectorAll('.error-message').forEach(el => el.remove());
+    }
+
+    function marcarInvalido(campo, mensagem) {
+        if (!campo) return;
+        campo.classList.add('is-invalid');
+
+        const erro = document.createElement('div');
+        erro.classList.add('error-message');
+        erro.textContent = mensagem;
+        // insere a mensagem depois do campo; se o campo for hidden, tenta inserir após o pai
+        if (campo.type === 'hidden' && campo.parentElement) {
+        campo.parentElement.insertAdjacentElement('afterend', erro);
+        } else {
+        campo.insertAdjacentElement('afterend', erro);
+        }
+    }
+
+    form.addEventListener('submit', function (e) {
+        try {
+        let valid = true;
+
+        // limpa erros anteriores (limpa somente dentro do form)
+        clearErrors(form);
+
+        // ===== CLIENTE =====
+        const clienteSelect = form.querySelector('#clienteSelect') || form.querySelector('[name="clienteId"]');
+        const clienteValue = clienteSelect ? (clienteSelect.value || '') : '';
+        const novoClienteDiv = form.querySelector('#novoCliente');
+
+        if (clienteSelect) {
+            // Se opção "novo" selecionada, valida os campos do novo cliente
+            if (clienteValue === 'novo' && novoClienteDiv) {
+            const nome = novoClienteDiv.querySelector('[name="clienteName"]');
+            const cpf = novoClienteDiv.querySelector('[name="clienteCpfCnpj"]');
+            const contato = novoClienteDiv.querySelector('[name="clienteContato"]');
+
+            if (!nome || !nome.value.trim()) { marcarInvalido(nome || clienteSelect, 'Informe o nome do cliente.'); valid = false; }
+            if (!cpf || !cpf.value.trim()) { marcarInvalido(cpf || clienteSelect, 'Informe o CPF/CNPJ do cliente.'); valid = false; }
+            if (!contato || !contato.value.trim()) { marcarInvalido(contato || clienteSelect, 'Informe o contato do cliente.'); valid = false; }
+            } else if (!clienteValue || clienteValue === '') {
+            // nenhum cliente selecionado
+            marcarInvalido(clienteSelect, 'Selecione um cliente ou cadastre um novo.');
+            valid = false;
+            }
+        } else {
+            // se não existir o seletor do cliente, apenas loga (não bloqueia)
+            console.warn('Validador: clienteSelect não encontrado no formulário.');
+        }
+
+        // ===== PLACA DO VEÍCULO =====
+        const placa = form.querySelector('[name="placa_veiculo"]');
+        if (placa) {
+            if (!placa.value || !placa.value.trim()) { marcarInvalido(placa, 'Informe a placa do veículo.'); valid = false; }
+        } else {
+            console.warn('Validador: campo placa_veiculo não encontrado.');
+        }
+
+        // ===== ITENS DO PEDIDO =====
+        const itens = form.querySelectorAll('#itensPedido .item-container');
+        if (!itens || itens.length === 0) {
+            // adiciona mensagem de erro acima do container de itens (se existir)
+            const itensDiv = form.querySelector('#itensPedido');
+            if (itensDiv) {
+            const erro = document.createElement('div');
+            erro.classList.add('error-message');
+            erro.textContent = 'Adicione pelo menos um item ao pedido.';
+            itensDiv.insertAdjacentElement('beforebegin', erro);
+            } else {
+            console.warn('Validador: #itensPedido não encontrado.');
+            }
+            valid = false;
+        } else {
+            itens.forEach(item => {
+            const tipoEl = item.querySelector('.tipoItem');
+            const tipo = tipoEl ? (tipoEl.value || '') : '';
+            const quantidade = item.querySelector('.quantidadeItem');
+            const valor = item.querySelector('.valorItem');
+
+            if (tipo === 'peca') {
+                const pecaSelect = item.querySelector('.selectPart');
+                if (!pecaSelect || !pecaSelect.value || !pecaSelect.value.trim()) {
+                marcarInvalido(pecaSelect || (tipoEl || item), 'Selecione a peça.');
+                valid = false;
+                }
+            } else if (tipo === 'mao_de_obra') {
+                // descrição pode ter name com índice; usa seletor que case com [descricao]
+                const descricao = item.querySelector('[name*="[descricao]"]');
+                if (!descricao || !descricao.value.trim()) {
+                marcarInvalido(descricao || (tipoEl || item), 'Descreva o serviço.');
+                valid = false;
+                }
+            } else {
+                // se tipo não existir, marca o select de tipo
+                if (tipoEl && (!tipoEl.value || tipoEl.value === '')) {
+                marcarInvalido(tipoEl, 'Selecione o tipo do item.');
+                valid = false;
+                }
+            }
+
+            if (quantidade) {
+                const qVal = Number(quantidade.value);
+                if (!quantidade.value || isNaN(qVal) || qVal <= 0) {
+                marcarInvalido(quantidade, 'Quantidade inválida.');
+                valid = false;
+                }
+            } else {
+                console.warn('Validador: campo quantidadeItem não encontrado num item.');
+                valid = false;
+            }
+
+            if (valor) {
+                const vVal = Number(valor.value);
+                if (!valor.value || isNaN(vVal) || vVal <= 0) {
+                marcarInvalido(valor, 'Informe o valor (maior que zero).');
+                valid = false;
+                }
+            } else {
+                console.warn('Validador: campo valorItem não encontrado num item.');
+                valid = false;
+            }
+            });
+        }
+
+        // ===== PARCELAS =====
+        const parcela = form.querySelector('[name="parcela"]');
+        if (parcela) {
+            const p = parcela.value;
+            if (!p || !p.toString().trim() || isNaN(Number(p)) || Number(p) <= 0) {
+            marcarInvalido(parcela, 'Informe a quantidade de parcelas válida.');
+            valid = false;
+            }
+        } // se não existir, ignora (ou loga)
+
+        if (!valid) {
+            e.preventDefault();
+        }
+        } catch (err) {
+        // Em caso de erro inesperado, evita quebrar tudo e loga para dev
+        console.error('Validador de pedidos erro:', err);
+        // não impede envio automático aqui — mas recomendamos revisar o console
+        }
+    });
+
+    // Opcional: remove erro ao digitar/mudar em tempo real
+    form.addEventListener('input', function(ev) {
+        const target = ev.target;
+        if (!target) return;
+        if (target.classList.contains('is-invalid')) {
+        target.classList.remove('is-invalid');
+        // remove mensagem de erro associada logo depois, se existir
+        const next = target.nextElementSibling;
+        if (next && next.classList.contains('error-message')) next.remove();
+        }
+    });
+
+    })();
     function adicionarItem() {
         const container = document.getElementById("itensPedido");
         const index = container.children.length;

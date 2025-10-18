@@ -59,7 +59,7 @@ app.get("/", async (req, res) =>{
 async function startServer() {
   try {
     // Cria todas as tabelas que ainda não existem
-    await connection.sync({ alter: true }); 
+    await connection.sync(); 
     console.log("Tabelas sincronizadas com sucesso!");
 
     app.listen(8080, () => {

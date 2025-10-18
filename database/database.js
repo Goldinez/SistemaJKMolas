@@ -6,4 +6,4 @@ const connection = new Sequelize({
     storage: path.join(__dirname, "..", "JkMolas.db")
 });
 
-module.exports = connection;
+module.exports = connection; 

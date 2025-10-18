@@ -1,6 +1,19 @@
 <%- include("../../partials/header.ejs") %>
 <%- include("../../partials/navbar.ejs") %>
+<style>
+    input.error, select.error {
+        border: 2px solid #e74c3c !important;
+        background-color: #fdecea !important;
+    }
 
+    .alert-danger {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c2c7;
+        border-radius: 6px;
+        padding: 10px;
+    }
+</style>
 <div class="container">
     <hr>
     <div class="card">
@@ -62,6 +75,88 @@
 </div>
 
 <script>
+    document.querySelector('form[action="/parts/save"]').addEventListener("submit", function(event) {
+    event.preventDefault();
+
+    let valid = true;
+    let messages = [];
+
+    // Limpa erros anteriores
+    document.querySelectorAll(".error").forEach(el => el.classList.remove("error"));
+    const oldAlert = document.getElementById("formAlert");
+    if (oldAlert) oldAlert.remove();
+
+    // Cria alerta
+    const alert = document.createElement("div");
+    alert.id = "formAlert";
+    alert.className = "alert alert-danger mt-2";
+    alert.style.display = "none";
+
+    // Campos principais obrigatórios
+    const fields = [
+        { name: "name", label: "Nome" },
+        { name: "seller", label: "Fornecedor" },
+        { name: "value", label: "Valor" },
+        { name: "type", label: "Tipo de peça" }
+    ];
+
+    fields.forEach(field => {
+        const input = document.querySelector(`[name="${field.name}"]`);
+        if (input) {
+        const value = input.value.trim();
+        if (!value) {
+            valid = false;
+            messages.push(`O campo "${field.label}" é obrigatório.`);
+            input.classList.add("error");
+        }
+        }
+    });
+
+    // --- Verifica o campo "Tipo de peça" ---
+    const typeSelect = document.querySelector('[name="type"]');
+    const newTypeInput = document.querySelector('[name="newType"]');
+    if (typeSelect && typeSelect.value === "novo") {
+        if (!newTypeInput.value.trim()) {
+        valid = false;
+        messages.push('Digite o nome do novo tipo de peça.');
+        newTypeInput.classList.add("error");
+        }
+    }
+
+    // --- Verifica compatibilidades ---
+    const compatItems = document.querySelectorAll('.compatibilityItem');
+    compatItems.forEach(item => {
+        const select = item.querySelector('.compatibilitySelect');
+        const newInput = item.querySelector('input[name="newCompatibility[]"]');
+
+        // se o usuário não escolheu marca nenhuma
+        if (select && select.value === "") {
+        valid = false;
+        select.classList.add("error");
+        }
+
+        // se ele escolheu "novo", mas não digitou o nome
+        if (select && select.value === "novo") {
+        if (!newInput.value.trim()) {
+            valid = false;
+            messages.push('Digite o nome da nova marca adicionada.');
+            newInput.classList.add("error");
+        }
+        }
+    });
+
+    // Mostra alerta se houver erros
+    if (!valid) {
+        alert.innerHTML = "⚠️ Verifique os campos destacados antes de continuar.<br>" + messages.join("<br>");
+        this.prepend(alert);
+        alert.style.display = "block";
+        return;
+    }
+
+    // Se tudo ok, envia
+    this.submit();
+    });
+
     // Mostrar/ocultar novo tipo
     document.getElementById('type').addEventListener('change', function() {
         document.getElementById('newType').style.display = this.value === 'novo' ? 'block' : 'none';
